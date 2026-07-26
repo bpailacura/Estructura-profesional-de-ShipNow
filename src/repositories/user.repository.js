@@ -27,6 +27,11 @@ class UserRepository {
     return user.save();
   }
 
+  // Inserción controlada de varios documentos a la vez (usada por el módulo de mocks).
+  async insertMany(usersData) {
+    return User.insertMany(usersData);
+  }
+
   async updateById(id, updateData) {
     return User.findByIdAndUpdate(id, updateData, {
       new: true,
