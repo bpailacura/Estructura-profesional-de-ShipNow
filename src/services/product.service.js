@@ -1,5 +1,6 @@
 const productRepository = require('../repositories/product.repository');
 const { PRODUCT_STATUS } = require('../constants');
+const { NotFoundError, ValidationError } = require('../errors/domainErrors');
 
 class ProductService {
   async getAllProducts({ onlyAvailable = false } = {}) {
@@ -10,9 +11,7 @@ class ProductService {
   async getProductById(id) {
     const product = await productRepository.getById(id);
     if (!product) {
-      const error = new Error('Producto no encontrado');
-      error.statusCode = 404;
-      throw error;
+      throw new NotFoundError('PRODUCT_NOT_FOUND');
     }
     return product;
   }
@@ -49,19 +48,22 @@ class ProductService {
 
   _validateProductData({ name, price, stock }) {
     if (!name || typeof name !== 'string') {
-      const error = new Error('El campo "name" es obligatorio y debe ser texto');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El campo "name" es obligatorio y debe ser texto',
+        details: { field: 'name' },
+      });
     }
     if (typeof price !== 'number' || price < 0) {
-      const error = new Error('El campo "price" debe ser un número mayor o igual a 0');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El campo "price" debe ser un número mayor o igual a 0',
+        details: { field: 'price' },
+      });
     }
     if (stock !== undefined && (typeof stock !== 'number' || stock < 0)) {
-      const error = new Error('El campo "stock" debe ser un número mayor o igual a 0');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El campo "stock" debe ser un número mayor o igual a 0',
+        details: { field: 'stock' },
+      });
     }
   }
 }
