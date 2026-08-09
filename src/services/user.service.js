@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const userRepository = require('../repositories/user.repository');
 const { USER_ROLES } = require('../constants');
+const { NotFoundError, ConflictError, ValidationError } = require('../errors/domainErrors');
+const logger = require('../config/logger.config');
 
 const SALT_ROUNDS = 10;
 
@@ -12,9 +14,7 @@ class UserService {
   async getUserById(id) {
     const user = await userRepository.getById(id);
     if (!user) {
-      const error = new Error('Usuario no encontrado');
-      error.statusCode = 404;
-      throw error;
+      throw new NotFoundError('USER_NOT_FOUND');
     }
     return user;
   }
@@ -24,9 +24,7 @@ class UserService {
 
     const existing = await userRepository.getByEmailWithPassword(email);
     if (existing) {
-      const error = new Error('Ya existe un usuario con ese email');
-      error.statusCode = 409;
-      throw error;
+      throw new ConflictError('USER_ALREADY_EXISTS');
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -44,6 +42,7 @@ class UserService {
 
     // No devolvemos el hash aunque el repository lo haya guardado
     const { passwordHash: _omit, ...safeUser } = user.toObject();
+    logger.info(`Usuario registrado correctamente: ${safeUser.email} (rol: ${safeUser.role})`);
     return safeUser;
   }
 
@@ -63,19 +62,22 @@ class UserService {
 
   _validateRegistration({ name, email, password }) {
     if (!name || typeof name !== 'string') {
-      const error = new Error('El campo "name" es obligatorio');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El campo "name" es obligatorio',
+        details: { field: 'name' },
+      });
     }
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      const error = new Error('El campo "email" no es válido');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El campo "email" no es válido',
+        details: { field: 'email' },
+      });
     }
     if (!password || password.length < 6) {
-      const error = new Error('El "password" debe tener al menos 6 caracteres');
-      error.statusCode = 400;
-      throw error;
+      throw new ValidationError('VALIDATION_ERROR', {
+        message: 'El "password" debe tener al menos 6 caracteres',
+        details: { field: 'password' },
+      });
     }
   }
 }

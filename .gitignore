@@ -1,3 +1,8 @@
 node_modules/
 .env
 npm-debug.log
+
+# Logs generados por la app (Winston). La carpeta se conserva
+# vía logs/.gitkeep, pero los archivos que genera la app no se suben.
+logs/*
+!logs/.gitkeep
