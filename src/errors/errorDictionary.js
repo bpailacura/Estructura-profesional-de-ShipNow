@@ -17,9 +17,14 @@ const ERROR_DICTIONARY = Object.freeze({
   // --- Productos ---
   PRODUCT_NOT_FOUND: { statusCode: 404, message: 'Producto no encontrado' },
 
-  // --- Pedidos (definidos para cuando se agregue el módulo de Orders) ---
+  // --- Pedidos ---
   ORDER_NOT_FOUND: { statusCode: 404, message: 'Pedido no encontrado' },
   INVALID_ORDER_STATUS: { statusCode: 400, message: 'Estado de pedido inválido' },
+
+  // --- Entregas ---
+  DELIVERY_NOT_FOUND: { statusCode: 404, message: 'Entrega no encontrada' },
+  INVALID_DELIVERY_STATUS: { statusCode: 400, message: 'Estado de entrega inválido' },
+  DELIVERY_ALREADY_EXISTS: { statusCode: 409, message: 'El pedido ya tiene una entrega asociada' },
 
   // --- Mocks ---
   INVALID_MOCK_COUNT: { statusCode: 400, message: 'Cantidad de datos de prueba inválida' },

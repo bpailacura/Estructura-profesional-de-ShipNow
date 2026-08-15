@@ -25,6 +25,14 @@ class OrderRepository {
     return Order.insertMany(ordersData);
   }
 
+  async updateStatusById(id, status) {
+    return Order.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    ).select(OrderRepository.DEFAULT_PROJECTION);
+  }
+
   async deleteById(id) {
     return Order.findByIdAndDelete(id);
   }

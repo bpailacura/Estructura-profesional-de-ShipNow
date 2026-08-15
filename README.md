@@ -6,13 +6,14 @@ Refactor de la API base de ShipNow a arquitectura **Controller → Service → R
 
 ```
 src/
-  config/          # Lectura/validación de env vars y configuración centralizada del logger (Winston)
+  config/          # Lectura/validación de env vars, configuración del logger (Winston) y configuración de Swagger
   constants/        # Valores fijos del dominio: roles, estados, prioridades (Object.freeze)
   models/           # Esquemas de Mongoose, sin lógica de negocio (User, Product, Order, Delivery)
   repositories/     # Único lugar que conoce Mongoose/MongoDB
   services/         # Lógica de negocio (validaciones, reglas, orquestación)
   controllers/      # Manejo de req/res, delega todo al Service
   routes/           # Conectan path + método HTTP con el Controller
+  docs/             # Anotaciones @swagger (OpenAPI) por módulo — NO contienen lógica, solo documentación
   errors/           # Errores personalizados del dominio + diccionario de errores
   middlewares/       # Middleware global que transforma errores en respuestas HTTP uniformes (y los loguea)
   mocks/            # Módulo de mocking: factories de datos + servicio de generación/carga
@@ -23,7 +24,25 @@ server.js           # Punto de entrada: conecta DB y levanta el server
 logs/               # Archivos de log generados por Winston (ignorados por Git, ver más abajo)
 ```
 
-> **Nota sobre el dominio:** el proyecto ya tenía `User` y `Product`. Para esta pre-entrega (mocking de pedidos, entregas y repartidores) se agregaron los modelos `Order` (pedido) y `Delivery` (entrega), y el rol `DELIVERY_PERSON` (repartidor), siguiendo la misma arquitectura por capas del módulo anterior.
+> **Nota sobre el dominio:** el proyecto ya tenía `User` y `Product`. En el módulo anterior (mocking de pedidos, entregas y repartidores) se agregaron los modelos `Order` (pedido) y `Delivery` (entrega), y el rol `DELIVERY_PERSON` (repartidor). Para esta pre-entrega se agregó el CRUD real de `Order` y `Delivery` (antes solo existían como datos simulados dentro de `/api/mocks`), siguiendo la misma arquitectura por capas, y se documentó toda la API con Swagger/OpenAPI.
+
+## Documentación interactiva (Swagger)
+
+[#documentación-interactiva-swagger](#documentación-interactiva-swagger)
+
+Con el servidor corriendo, la documentación interactiva está en:
+
+```
+http://localhost:3000/api/docs
+```
+
+Desde ahí se puede consultar y **probar en vivo** (botón "Try it out") cada endpoint: método, parámetros, body esperado, respuestas exitosas y errores posibles.
+
+- **Configuración**: `src/config/swagger.config.js` (info general, servers, tags, y de dónde lee las anotaciones). Está separada tanto de `app.js` como de la lógica de rutas — solo arma el spec de OpenAPI con `swagger-jsdoc` y se monta en `app.js` con `swagger-ui-express`.
+- **Anotaciones**: viven en `src/docs/*.docs.js`, un archivo por módulo (`users`, `products`, `orders`, `deliveries`, `mocks`, `logger`, más `schemas.docs.js` con los schemas reutilizables). Son archivos que **no tienen lógica**, solo comentarios `@swagger`; nunca se importan desde el código real, `swagger-jsdoc` los lee por ruta.
+- **Módulos documentados**: `Users`, `Orders`, `Deliveries`, `Mocks` y `Logger` (pedidos por la consigna), más `Products` como tag extra porque también es parte real de la API.
+- **Schemas reutilizables**: `User`, `Product`, `Order`, `OrderItem`, `Delivery`, además de los inputs de cada uno (`UserRegisterInput`, `OrderCreateInput`, etc.), `SuccessResponse` y `ErrorResponse`.
+- **Aclaración para probar**: no hay autenticación/JWT implementada todavía (el `.env.example` tiene `JWT_SECRET` reservado para más adelante), así que ningún endpoint pide token — no hay ningún error 401/403 documentado porque la API real no los devuelve. Para probar `POST /orders` o `POST /deliveries` desde Swagger UI primero conviene generar datos con `POST /mocks/seed` y usar los ids (`_id`) de usuarios/pedidos que devuelve en el `sample` de la respuesta.
 
 ## Instalación y ejecución local
 
@@ -72,6 +91,20 @@ logs/               # Archivos de log generados por Winston (ignorados por Git, 
 - `GET /:id`
 - `POST /register`
 - `PUT /:id`
+- `DELETE /:id`
+
+**Pedidos** (`/api/orders`)
+- `GET /` — lista todos (`?status=PENDING|SHIPPED|DELIVERED|CANCELLED` filtra por estado)
+- `GET /:id`
+- `POST /` — body: `{ customer, items: [{ productName, quantity, unitPrice, product? }], priority? }`. `totalAmount` se calcula en el servidor, nunca se recibe del cliente.
+- `PUT /:id/status` — body: `{ status }` (debe ser uno de `PENDING|SHIPPED|DELIVERED|CANCELLED`)
+- `DELETE /:id`
+
+**Entregas** (`/api/deliveries`)
+- `GET /` — lista todas (`?status=ASSIGNED|IN_TRANSIT|DELIVERED|FAILED` filtra por estado)
+- `GET /:id`
+- `POST /` — body: `{ order, deliveryPerson, address, estimatedDeliveryDate }`. Valida que `order` exista, que `deliveryPerson` sea un usuario con rol `DELIVERY_PERSON`, y que el pedido no tenga ya una entrega asociada (relación 1 a 1).
+- `PUT /:id/status` — body: `{ status }` (debe ser uno de `ASSIGNED|IN_TRANSIT|DELIVERED|FAILED`)
 - `DELETE /:id`
 
 **Mocking** (`/api/mocks`)
@@ -129,7 +162,7 @@ Ninguna ruta ni controller arma respuestas de error a mano. Todos hacen `next(er
 
 - `errorDictionary.js` — diccionario que mapea un código de error (ej. `USER_NOT_FOUND`) a su `statusCode` y mensaje por defecto. Es el único lugar donde se decide "este tipo de error responde con tal código".
 - `AppError.js` — clase base: se instancia con una clave del diccionario y busca ahí el `statusCode`/mensaje, permitiendo overridear el mensaje o agregar `details` puntuales (ej. qué campo falló).
-- `domainErrors.js` — errores personalizados del dominio, agrupados por familia: `NotFoundError` (404: usuario/producto/pedido inexistente), `ValidationError` (400: datos inválidos, cantidad de mocks inválida), `ConflictError` (409: email duplicado), `DatabaseError` (502: falla real de Mongo durante el seed de mocks).
+- `domainErrors.js` — errores personalizados del dominio, agrupados por familia: `NotFoundError` (404: usuario/producto/pedido/entrega inexistente), `ValidationError` (400: datos inválidos, status inválido en pedidos/entregas, cantidad de mocks inválida), `ConflictError` (409: email duplicado, pedido que ya tiene entrega asociada), `DatabaseError` (502: falla real de Mongo durante el seed de mocks).
 
 Los `services` (`user.service.js`, `product.service.js`) y el módulo de mocks (`mock.service.js`, apoyado en `mock.validation.js`) lanzan estos errores directamente — nunca arman ellos mismos la respuesta HTTP.
 
@@ -187,6 +220,24 @@ curl "http://localhost:3000/api/mocks/deliveries?count=9999"
 curl -X POST http://localhost:3000/api/mocks/seed \
   -H "Content-Type: application/json" \
   -d '{"usersCount": -3}'
+
+# Pedido inexistente -> 404 ORDER_NOT_FOUND
+curl "http://localhost:3000/api/orders/64f000000000000000000000"
+
+# Cambiar un pedido a un status que no existe -> 400 INVALID_ORDER_STATUS
+curl -X PUT http://localhost:3000/api/orders/<id-de-un-pedido>/status \
+  -H "Content-Type: application/json" \
+  -d '{"status":"NO_EXISTE"}'
+
+# Entrega inexistente -> 404 DELIVERY_NOT_FOUND
+curl "http://localhost:3000/api/deliveries/64f000000000000000000000"
+
+# Cambiar una entrega a un status que no existe -> 400 INVALID_DELIVERY_STATUS
+curl -X PUT http://localhost:3000/api/deliveries/<id-de-una-entrega>/status \
+  -H "Content-Type: application/json" \
+  -d '{"status":"NO_EXISTE"}'
+
+# Crear una entrega para un pedido que ya tiene una -> 409 DELIVERY_ALREADY_EXISTS
 ```
 
 ## Validación de entorno

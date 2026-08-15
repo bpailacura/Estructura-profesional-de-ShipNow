@@ -25,6 +25,14 @@ class DeliveryRepository {
     return Delivery.insertMany(deliveriesData);
   }
 
+  async updateStatusById(id, status) {
+    return Delivery.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    ).select(DeliveryRepository.DEFAULT_PROJECTION);
+  }
+
   async deleteById(id) {
     return Delivery.findByIdAndDelete(id);
   }
