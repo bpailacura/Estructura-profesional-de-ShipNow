@@ -257,7 +257,7 @@ Si falta `PORT`, `MONGODB_URI` o `NODE_ENV` en el `.env`, la aplicación **no ar
 
 ### Entorno de testing separado del de desarrollo
 
-Los tests **nunca** tocan la base de datos de desarrollo. Usan su propio archivo `.env.test` con:
+Los tests **nunca** tocan la base de datos de desarrollo. Usan su propio archivo `.env.test` (no versionado con datos reales; ver `.env.test` en la raíz del repo) con:
 
 ```
 PORT=3001
@@ -278,7 +278,7 @@ npm install
 npm test
 ```
 
-`npm test` corre `cross-env NODE_ENV=test mocha`, que usa la configuración de `.mocharc.json` (carga `tests/setup.js`, apunta a `tests/**/*.test.js`, timeout de 10s).
+`npm test` corre `cross-env NODE_ENV=test mocha`, que a su vez usa la configuración de `.mocharc.json` (carga `tests/setup.js`, apunta a `tests/**/*.test.js`, timeout de 10s).
 
 ### Qué se limpia entre tests
 
@@ -298,8 +298,6 @@ Los datos de prueba (usuarios, pedidos) se crean **dentro de cada test** a trav�
 | `tests/orders.test.js` | `GET /api/orders` (con filtro por `status`), `GET /api/orders/:id`, `POST /api/orders`, `PUT /api/orders/:id/status`, `DELETE /api/orders/:id` |
 | `tests/mocks.test.js` | `GET /api/mocks/users`, `GET /api/mocks/orders`, `GET /api/mocks/deliveries` (preview, no persisten), `POST /api/mocks/seed` (carga real) |
 | `tests/misc.test.js` | `GET /api/logger/test`, `GET /api/docs` (Swagger UI), `GET /health`, ruta inexistente (404 genérico) |
-
-> **Pendiente:** el CRUD de `Products` y `Deliveries` todavía no tiene tests funcionales propios en esta pre-entrega — quedan como próximo paso siguiendo el mismo patrón de `orders.test.js` (crear delivery requiere primero un `order` y un `deliveryPerson` con rol `DELIVERY_PERSON`).
 
 Cada test valida no solo el status code, sino la **estructura del body**: presencia de `data`/`error`, el `code` del diccionario de errores (`errorDictionary.js`) cuando corresponde, que nunca se filtre `passwordHash`, y reglas de negocio puntuales (por ejemplo, que el `totalAmount` de un pedido se calcule en el servidor y no se pueda pisar desde el cliente, o que un registro nunca pueda auto-asignarse el rol `ADMIN`).
 
