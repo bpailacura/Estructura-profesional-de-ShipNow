@@ -1,8 +1,9 @@
+const path = require('path');
 const deliveryRepository = require('../repositories/delivery.repository');
 const orderRepository = require('../repositories/order.repository');
 const userRepository = require('../repositories/user.repository');
-const { DELIVERY_STATUS, USER_ROLES } = require('../constants');
-const { NotFoundError, ValidationError, ConflictError } = require('../errors/domainErrors');
+const { DELIVERY_STATUS, USER_ROLES, DOCUMENT_TYPES } = require('../constants');
+const { NotFoundError, ValidationError, ConflictError, FileError } = require('../errors/domainErrors');
 const logger = require('../config/logger.config');
 
 class DeliveryService {
@@ -54,6 +55,41 @@ class DeliveryService {
     return deliveryRepository.updateStatusById(id, status);
   }
 
+  // Sube y asocia un comprobante (foto de entrega, firma, recibo, etc.)
+  // a una entrega existente. `file` viene de req.file (Multer).
+  async addDeliveryProof(deliveryId, file, documentType) {
+    await this.getDeliveryById(deliveryId); // 404 si la entrega no existe
+
+    if (!file) {
+      throw new FileError('FILE_REQUIRED');
+    }
+
+    // Para comprobantes el tipo de documento es opcional: si no se
+    // manda, se asume DELIVERY_PROOF; si se manda, tiene que ser válido.
+    const resolvedType = documentType || DOCUMENT_TYPES.DELIVERY_PROOF;
+    this._validateDocumentType(resolvedType);
+
+    const proofData = {
+      originalName: file.originalname,
+      storedName: file.filename,
+      path: path.relative(process.cwd(), file.path),
+      mimeType: file.mimetype,
+      size: file.size,
+      documentType: resolvedType,
+    };
+
+    let updatedDelivery;
+    try {
+      updatedDelivery = await deliveryRepository.addProof(deliveryId, proofData);
+    } catch (error) {
+      logger.error(`Error al guardar los metadatos del comprobante de la entrega ${deliveryId}: ${error.message}`);
+      throw new FileError('FILE_UPLOAD_FAILED', { message: error.message });
+    }
+
+    logger.info(`Comprobante asociado a la entrega ${deliveryId} (archivo: ${file.originalname})`);
+    return updatedDelivery;
+  }
+
   async deleteDelivery(id) {
     await this.getDeliveryById(id);
     return deliveryRepository.deleteById(id);
@@ -102,6 +138,14 @@ class DeliveryService {
       throw new ValidationError('VALIDATION_ERROR', {
         message: 'El campo "estimatedDeliveryDate" debe ser una fecha válida',
         details: { field: 'estimatedDeliveryDate' },
+      });
+    }
+  }
+
+  _validateDocumentType(documentType) {
+    if (!Object.values(DOCUMENT_TYPES).includes(documentType)) {
+      throw new FileError('INVALID_DOCUMENT_TYPE', {
+        details: { field: 'documentType', received: documentType, allowed: Object.values(DOCUMENT_TYPES) },
       });
     }
   }

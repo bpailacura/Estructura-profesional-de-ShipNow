@@ -6,3 +6,8 @@ npm-debug.log
 # vía logs/.gitkeep, pero los archivos que genera la app no se suben.
 logs/*
 !logs/.gitkeep
+
+# Archivos subidos por los usuarios (Multer). La carpeta se conserva
+# vía uploads/.gitkeep, pero los archivos cargados no van al repo.
+uploads/*
+!uploads/.gitkeep

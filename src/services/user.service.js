@@ -1,7 +1,8 @@
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const userRepository = require('../repositories/user.repository');
-const { USER_ROLES } = require('../constants');
-const { NotFoundError, ConflictError, ValidationError } = require('../errors/domainErrors');
+const { USER_ROLES, DOCUMENT_TYPES } = require('../constants');
+const { NotFoundError, ConflictError, ValidationError, FileError } = require('../errors/domainErrors');
 const logger = require('../config/logger.config');
 
 const SALT_ROUNDS = 10;
@@ -55,6 +56,40 @@ class UserService {
     return userRepository.updateById(id, safeUpdate);
   }
 
+  // Sube y asocia un documento (DNI, licencia, etc.) a un usuario existente.
+  // `file` viene de req.file (Multer, ya guardado en disco por el middleware).
+  async addUserDocument(userId, file, documentType) {
+    await this.getUserById(userId); // 404 si el usuario no existe
+
+    if (!file) {
+      throw new FileError('FILE_REQUIRED');
+    }
+
+    this._validateDocumentType(documentType);
+
+    const documentData = {
+      originalName: file.originalname,
+      storedName: file.filename,
+      path: path.relative(process.cwd(), file.path),
+      mimeType: file.mimetype,
+      size: file.size,
+      documentType,
+    };
+
+    let updatedUser;
+    try {
+      updatedUser = await userRepository.addDocument(userId, documentData);
+    } catch (error) {
+      logger.error(`Error al guardar los metadatos del documento del usuario ${userId}: ${error.message}`);
+      throw new FileError('FILE_UPLOAD_FAILED', { message: error.message });
+    }
+
+    logger.info(
+      `Documento cargado correctamente para el usuario ${userId} (tipo: ${documentType}, archivo: ${file.originalname})`
+    );
+    return updatedUser;
+  }
+
   async deleteUser(id) {
     await this.getUserById(id);
     return userRepository.deleteById(id);
@@ -77,6 +112,20 @@ class UserService {
       throw new ValidationError('VALIDATION_ERROR', {
         message: 'El "password" debe tener al menos 6 caracteres',
         details: { field: 'password' },
+      });
+    }
+  }
+
+  _validateDocumentType(documentType) {
+    if (!documentType || typeof documentType !== 'string') {
+      throw new FileError('VALIDATION_ERROR', {
+        message: 'El campo "documentType" es obligatorio',
+        details: { field: 'documentType' },
+      });
+    }
+    if (!Object.values(DOCUMENT_TYPES).includes(documentType)) {
+      throw new FileError('INVALID_DOCUMENT_TYPE', {
+        details: { field: 'documentType', received: documentType, allowed: Object.values(DOCUMENT_TYPES) },
       });
     }
   }

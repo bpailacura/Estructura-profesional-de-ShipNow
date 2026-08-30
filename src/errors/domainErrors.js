@@ -37,10 +37,20 @@ class DatabaseError extends AppError {
   }
 }
 
+// 400/500 — familia de errores específica de la carga de archivos
+// (Multer): archivo faltante, tipo/tamaño inválido, tipo de documento
+// inválido, o falla al guardar el archivo/sus metadatos.
+class FileError extends AppError {
+  constructor(code = 'FILE_UPLOAD_FAILED', options) {
+    super(code, options);
+  }
+}
+
 module.exports = {
   AppError,
   NotFoundError,
   ValidationError,
   ConflictError,
   DatabaseError,
+  FileError,
 };

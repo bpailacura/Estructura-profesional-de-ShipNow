@@ -30,6 +30,14 @@ const ERROR_DICTIONARY = Object.freeze({
   INVALID_MOCK_COUNT: { statusCode: 400, message: 'Cantidad de datos de prueba inválida' },
   MOCK_SEED_FAILURE: { statusCode: 502, message: 'Ocurrió un error al cargar los datos de prueba en la base' },
 
+  // --- Archivos (carga con Multer) ---
+  FILE_REQUIRED: { statusCode: 400, message: 'Debés adjuntar un archivo en el campo "file"' },
+  INVALID_FILE_TYPE: { statusCode: 400, message: 'El tipo de archivo no está permitido' },
+  FILE_TOO_LARGE: { statusCode: 400, message: 'El archivo supera el tamaño máximo permitido' },
+  INVALID_DOCUMENT_TYPE: { statusCode: 400, message: 'El tipo de documento indicado no es válido' },
+  UNEXPECTED_FILE_FIELD: { statusCode: 400, message: 'El campo del archivo enviado no es el esperado (se espera "file")' },
+  FILE_UPLOAD_FAILED: { statusCode: 500, message: 'Ocurrió un error al guardar el archivo' },
+
   // --- Genéricos ---
   VALIDATION_ERROR: { statusCode: 400, message: 'Los datos enviados no son válidos' },
   DUPLICATE_KEY: { statusCode: 409, message: 'Ya existe un registro con ese valor único' },

@@ -10,6 +10,64 @@
  * @swagger
  * components:
  *   schemas:
+ *     FileMetadata:
+ *       type: object
+ *       description: Metadatos de un archivo cargado con Multer. El archivo en sí vive en el filesystem del servidor, nunca en Mongo.
+ *       properties:
+ *         originalName:
+ *           type: string
+ *           description: Nombre con el que el cliente subió el archivo.
+ *           example: dni-frente.jpg
+ *         storedName:
+ *           type: string
+ *           description: Nombre generado en el servidor (único, evita colisiones y path traversal).
+ *           example: 1735689600000-3f9a2b7c1d4e5f60.jpg
+ *         path:
+ *           type: string
+ *           description: Ruta relativa dentro de la carpeta uploads/ del servidor.
+ *           example: uploads/users/1735689600000-3f9a2b7c1d4e5f60.jpg
+ *         mimeType:
+ *           type: string
+ *           example: image/jpeg
+ *         size:
+ *           type: integer
+ *           description: Tamaño del archivo en bytes.
+ *           example: 245678
+ *         documentType:
+ *           type: string
+ *           enum: [DNI_FRONT, DNI_BACK, DRIVER_LICENSE, DELIVERY_PROOF, OTHER]
+ *           example: DNI_FRONT
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
+ *     UserDocumentUploadInput:
+ *       type: object
+ *       required: [file, documentType]
+ *       properties:
+ *         file:
+ *           type: string
+ *           format: binary
+ *           description: Archivo a subir (imagen o PDF, máximo 5MB).
+ *         documentType:
+ *           type: string
+ *           enum: [DNI_FRONT, DNI_BACK, DRIVER_LICENSE, OTHER]
+ *           example: DNI_FRONT
+ *
+ *     DeliveryProofUploadInput:
+ *       type: object
+ *       required: [file]
+ *       properties:
+ *         file:
+ *           type: string
+ *           format: binary
+ *           description: Archivo a subir (imagen o PDF, máximo 5MB).
+ *         documentType:
+ *           type: string
+ *           description: Opcional. Si no se envía, se asume DELIVERY_PROOF.
+ *           enum: [DELIVERY_PROOF, OTHER]
+ *           example: DELIVERY_PROOF
+ *
  *     User:
  *       type: object
  *       properties:
@@ -27,6 +85,11 @@
  *           type: string
  *           enum: [ADMIN, USER, DELIVERY_PERSON]
  *           example: USER
+ *         documents:
+ *           type: array
+ *           description: Documentos cargados para este usuario (DNI, licencia, etc.).
+ *           items:
+ *             $ref: '#/components/schemas/FileMetadata'
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -209,6 +272,11 @@
  *         estimatedDeliveryDate:
  *           type: string
  *           format: date-time
+ *         proofs:
+ *           type: array
+ *           description: Comprobantes cargados para esta entrega (foto, firma, recibo, etc.).
+ *           items:
+ *             $ref: '#/components/schemas/FileMetadata'
  *         createdAt:
  *           type: string
  *           format: date-time

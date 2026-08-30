@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { DELIVERY_STATUS } = require('../constants');
+const fileMetadataSchema = require('./shared/fileMetadata.schema');
 
 const deliverySchema = new mongoose.Schema(
   {
@@ -21,6 +22,9 @@ const deliverySchema = new mongoose.Schema(
     },
     address: { type: String, required: true, trim: true },
     estimatedDeliveryDate: { type: Date, required: true },
+    // Comprobantes asociados a esta entrega (foto de la entrega, firma,
+    // recibo, etc.). Solo metadatos: el archivo vive en uploads/deliveries/.
+    proofs: { type: [fileMetadataSchema], default: [] },
   },
   { timestamps: true }
 );

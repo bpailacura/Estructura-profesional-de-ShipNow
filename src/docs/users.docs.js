@@ -144,6 +144,67 @@
 
 /**
  * @swagger
+ * /users/{id}/documents:
+ *   post:
+ *     summary: Cargar un documento de un usuario (DNI, licencia, etc.)
+ *     description: >
+ *       Sube un archivo asociado al usuario y registra sus metadatos
+ *       (nombre original, nombre generado, ruta, tipo, tamaño, tipo de
+ *       documento y fecha de carga). El archivo en sí NO se guarda en
+ *       Mongo, solo en el filesystem del servidor.
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Id de Mongo del usuario dueño del documento.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             $ref: '#/components/schemas/UserDocumentUploadInput'
+ *           encoding:
+ *             file:
+ *               contentType: image/jpeg, image/png, image/webp, application/pdf
+ *     responses:
+ *       201:
+ *         description: Documento cargado y asociado al usuario.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: >
+ *           Archivo faltante (FILE_REQUIRED), tipo de archivo no permitido
+ *           (INVALID_FILE_TYPE), archivo demasiado grande (FILE_TOO_LARGE),
+ *           campo de archivo inesperado (UNEXPECTED_FILE_FIELD) o tipo de
+ *           documento inválido (INVALID_DOCUMENT_TYPE).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Usuario no encontrado (USER_NOT_FOUND).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error al guardar el archivo (FILE_UPLOAD_FAILED).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @swagger
  * /users/{id}:
  *   delete:
  *     summary: Eliminar un usuario

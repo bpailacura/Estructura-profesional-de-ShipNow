@@ -37,6 +37,17 @@ class UserController {
     }
   }
 
+  // POST /users/:id/documents (multipart/form-data)
+  // El archivo llega en req.file (middleware uploadUserDocument ya corrió antes).
+  async uploadDocument(req, res, next) {
+    try {
+      const user = await userService.addUserDocument(req.params.id, req.file, req.body.documentType);
+      return res.status(201).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async remove(req, res, next) {
     try {
       await userService.deleteUser(req.params.id);

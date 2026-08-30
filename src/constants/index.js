@@ -42,10 +42,29 @@ const DELIVERY_STATUS = Object.freeze({
   FAILED: 'FAILED',
 });
 
+// Tipos de documento válidos para los archivos que se cargan al sistema
+// (documentos de usuario y comprobantes de entrega comparten el mismo
+// catálogo; cada Service valida cuáles aplican en cada contexto).
+const DOCUMENT_TYPES = Object.freeze({
+  DNI_FRONT: 'DNI_FRONT',
+  DNI_BACK: 'DNI_BACK',
+  DRIVER_LICENSE: 'DRIVER_LICENSE',
+  DELIVERY_PROOF: 'DELIVERY_PROOF',
+  OTHER: 'OTHER',
+});
+
+// Configuración de validación para la carga de archivos (Multer).
+const UPLOAD_LIMITS = Object.freeze({
+  MAX_FILE_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
+  ALLOWED_MIME_TYPES: Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+});
+
 module.exports = {
   USER_ROLES,
   PRODUCT_STATUS,
   ORDER_STATUS,
   ORDER_PRIORITY,
   DELIVERY_STATUS,
+  DOCUMENT_TYPES,
+  UPLOAD_LIMITS,
 };

@@ -38,6 +38,17 @@ class DeliveryController {
     }
   }
 
+  // POST /deliveries/:id/proof (multipart/form-data)
+  // El archivo llega en req.file (middleware uploadDeliveryProof ya corrió antes).
+  async uploadProof(req, res, next) {
+    try {
+      const delivery = await deliveryService.addDeliveryProof(req.params.id, req.file, req.body.documentType);
+      return res.status(201).json({ data: delivery });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async remove(req, res, next) {
     try {
       await deliveryService.deleteDelivery(req.params.id);

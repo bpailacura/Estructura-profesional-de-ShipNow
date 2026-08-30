@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { USER_ROLES } = require('../constants');
+const fileMetadataSchema = require('./shared/fileMetadata.schema');
 
 const userSchema = new mongoose.Schema(
   {
@@ -11,6 +12,9 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(USER_ROLES),
       default: USER_ROLES.USER,
     },
+    // Documentos cargados por/sobre el usuario (DNI, licencia, etc.).
+    // Solo metadatos: el archivo vive en uploads/users/ (ver multer.config.js).
+    documents: { type: [fileMetadataSchema], default: [] },
   },
   { timestamps: true }
 );

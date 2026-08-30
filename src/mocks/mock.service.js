@@ -76,25 +76,49 @@ class MockService {
 
     try {
       // 1) Usuarios: generamos con la distribución de roles de la factory y
-      // garantizamos que exista al menos un cliente y un repartidor,
-      // para poder armar las relaciones pedido<->usuario y entrega<->repartidor.
+      // garantizamos que el LOTE incluya al menos un cliente y un repartidor
+      // ANTES de insertar (forzando el rol de algún usuario ya generado, en
+      // vez de insertar usuarios de más). Así "usersCreated" en la respuesta
+      // siempre coincide con la cantidad real que queda en la base, sin
+      // importar cómo haya salido el sorteo de roles.
       const usersToInsert = userFactory.buildUsers(safeUsersCount);
+
+      const hasDeliveryPerson = usersToInsert.some((user) => user.role === USER_ROLES.DELIVERY_PERSON);
+      const hasCustomer = usersToInsert.some((user) => user.role !== USER_ROLES.DELIVERY_PERSON);
+
+      if (!hasDeliveryPerson) {
+        usersToInsert[0].role = USER_ROLES.DELIVERY_PERSON;
+      }
+      // Con usersCount === 1 no se pueden garantizar los dos roles al mismo
+      // tiempo en el mismo lote: priorizamos el repartidor (arriba) y
+      // dejamos que el fallback de abajo cubra el cliente si hace falta.
+      if (!hasCustomer && usersToInsert.length > 1) {
+        usersToInsert[1].role = USER_ROLES.USER;
+      }
+
       const insertedUsers = await userRepository.insertMany(usersToInsert);
+      // Acumula TODO lo insertado (incluyendo los extras del fallback de
+      // abajo) para que el conteo y la muestra reportados sean honestos.
+      const allInsertedUsers = [...insertedUsers];
 
       let customers = insertedUsers.filter((user) => user.role !== USER_ROLES.DELIVERY_PERSON);
       let deliveryPeople = insertedUsers.filter((user) => user.role === USER_ROLES.DELIVERY_PERSON);
 
+      // Fallback: solo puede hacer falta cuando usersCount === 1 (el
+      // forzado de roles de arriba ya cubre cualquier caso con 2 o más).
       if (customers.length === 0) {
         const [extraCustomer] = await userRepository.insertMany([
           userFactory.buildUser({ role: USER_ROLES.USER }),
         ]);
         customers = [extraCustomer];
+        allInsertedUsers.push(extraCustomer);
       }
       if (deliveryPeople.length === 0) {
         const [extraDeliveryPerson] = await userRepository.insertMany([
           userFactory.buildUser({ role: USER_ROLES.DELIVERY_PERSON }),
         ]);
         deliveryPeople = [extraDeliveryPerson];
+        allInsertedUsers.push(extraDeliveryPerson);
       }
 
       // 2) Pedidos: si ya hay productos reales cargados, los usamos para
@@ -118,19 +142,19 @@ class MockService {
       const insertedDeliveries = await deliveryRepository.insertMany(deliveriesToInsert);
 
       logger.info(
-        `Datos de prueba insertados: ${insertedUsers.length} usuarios, ${insertedOrders.length} pedidos, ${insertedDeliveries.length} entregas`
+        `Datos de prueba insertados: ${allInsertedUsers.length} usuarios, ${insertedOrders.length} pedidos, ${insertedDeliveries.length} entregas`
       );
 
       return {
         summary: {
-          usersCreated: insertedUsers.length,
+          usersCreated: allInsertedUsers.length,
           ordersCreated: insertedOrders.length,
           deliveriesCreated: insertedDeliveries.length,
           customers: customers.length,
           deliveryPeople: deliveryPeople.length,
         },
         sample: {
-          user: insertedUsers[0] ? sanitizeUser(insertedUsers[0].toObject()) : null,
+          user: allInsertedUsers[0] ? sanitizeUser(allInsertedUsers[0].toObject()) : null,
           order: insertedOrders[0] || null,
           delivery: insertedDeliveries[0] || null,
         },

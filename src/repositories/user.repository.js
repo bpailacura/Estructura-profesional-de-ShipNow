@@ -39,6 +39,15 @@ class UserRepository {
     }).select(UserRepository.DEFAULT_PROJECTION);
   }
 
+  // Agrega un documento (metadatos de archivo) al array "documents" del usuario.
+  async addDocument(id, documentData) {
+    return User.findByIdAndUpdate(
+      id,
+      { $push: { documents: documentData } },
+      { new: true, runValidators: true }
+    ).select(UserRepository.DEFAULT_PROJECTION);
+  }
+
   async deleteById(id) {
     return User.findByIdAndDelete(id);
   }

@@ -33,6 +33,15 @@ class DeliveryRepository {
     ).select(DeliveryRepository.DEFAULT_PROJECTION);
   }
 
+  // Agrega un comprobante (metadatos de archivo) al array "proofs" de la entrega.
+  async addProof(id, proofData) {
+    return Delivery.findByIdAndUpdate(
+      id,
+      { $push: { proofs: proofData } },
+      { new: true, runValidators: true }
+    ).select(DeliveryRepository.DEFAULT_PROJECTION);
+  }
+
   async deleteById(id) {
     return Delivery.findByIdAndDelete(id);
   }
