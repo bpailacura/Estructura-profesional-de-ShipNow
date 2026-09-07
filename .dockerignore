@@ -1,0 +1,39 @@
+# Dependencias: se instalan DENTRO de la imagen (npm ci), nunca se copian
+# desde el host -- evita arrastrar binarios nativos compilados para el SO
+# equivocado y mantiene la imagen reproducible.
+node_modules
+
+# Archivos de entorno: nunca deben terminar dentro de la imagen. Las
+# variables reales se inyectan en runtime (--env-file o -e en `docker run`).
+.env
+.env.test
+.env.*.local
+
+# Control de versiones
+.git
+.gitignore
+
+# Generados en runtime: se recrean solos (ver Dockerfile) o se montan
+# como volumen. No tiene sentido "hornear" logs/uploads viejos del host
+# dentro de la imagen.
+logs
+uploads
+
+# Testing y cobertura: no hacen falta para correr la app en producción.
+tests
+coverage
+.nyc_output
+
+# Temporales / editor / SO
+*.log
+npm-debug.log*
+.DS_Store
+.vscode
+.idea
+
+# Documentación: no aporta nada corriendo dentro del contenedor.
+README.md
+
+# El propio Dockerfile y este archivo no necesitan copiarse a sí mismos.
+Dockerfile
+.dockerignore

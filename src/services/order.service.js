@@ -2,12 +2,20 @@ const orderRepository = require('../repositories/order.repository');
 const userRepository = require('../repositories/user.repository');
 const { ORDER_STATUS } = require('../constants');
 const { NotFoundError, ValidationError } = require('../errors/domainErrors');
+const { parsePagination, buildMeta } = require('../utils/pagination.util');
 const logger = require('../config/logger.config');
 
 class OrderService {
-  async getAllOrders({ status } = {}) {
+  async getAllOrders({ status, page, limit } = {}) {
     const filters = status ? { status } : {};
-    return orderRepository.getAll(filters);
+    const pagination = parsePagination({ page, limit });
+
+    const [data, total] = await Promise.all([
+      orderRepository.getAll(filters, pagination),
+      orderRepository.count(filters),
+    ]);
+
+    return { data, meta: buildMeta({ ...pagination, total }) };
   }
 
   async getOrderById(id) {

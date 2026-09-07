@@ -33,7 +33,7 @@ function pickWeightedRole() {
  * Construye un objeto de usuario simulado (no lo guarda en la base).
  * @param {{ role?: string }} options - rol forzado; si no se pasa, se sortea.
  */
-function buildUser({ role } = {}) {
+async function buildUser({ role } = {}) {
   if (role && !ASSIGNABLE_ROLES.includes(role)) {
     const error = new Error(`Rol de mock inválido: "${role}"`);
     error.statusCode = 400;
@@ -46,13 +46,15 @@ function buildUser({ role } = {}) {
   return {
     name: `${firstName} ${lastName}`,
     email: faker.internet.email({ firstName, lastName }).toLowerCase(),
-    passwordHash: bcrypt.hashSync(MOCK_PASSWORD, MOCK_SALT_ROUNDS),
+    passwordHash: await bcrypt.hash(MOCK_PASSWORD, MOCK_SALT_ROUNDS),
     role: role || pickWeightedRole(),
   };
 }
 
 function buildUsers(count, options = {}) {
-  return Array.from({ length: count }, () => buildUser(options));
+  // Se generan en paralelo (Promise.all) en vez de hashear uno por uno
+  // en un loop sync: con async bcrypt.hash cada hash libera el Event Loop.
+  return Promise.all(Array.from({ length: count }, () => buildUser(options)));
 }
 
 module.exports = {

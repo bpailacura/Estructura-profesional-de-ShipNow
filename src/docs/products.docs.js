@@ -19,9 +19,11 @@
  *           type: string
  *           enum: ['true']
  *         description: Si se manda "available=true", filtra solo productos con status AVAILABLE.
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
  *     responses:
  *       200:
- *         description: Lista de productos.
+ *         description: Página de productos.
  *         content:
  *           application/json:
  *             schema:
@@ -31,6 +33,8 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Product'
+ *                 meta:
+ *                   $ref: '#/components/schemas/PaginationMeta'
  */
 
 /**

@@ -7,8 +7,15 @@ const Delivery = require('../models/delivery.model');
 class DeliveryRepository {
   static DEFAULT_PROJECTION = '-__v';
 
-  async getAll(filters = {}) {
-    return Delivery.find(filters, DeliveryRepository.DEFAULT_PROJECTION).lean();
+  async getAll(filters = {}, { skip = 0, limit = 0 } = {}) {
+    let query = Delivery.find(filters, DeliveryRepository.DEFAULT_PROJECTION).lean();
+    if (skip) query = query.skip(skip);
+    if (limit) query = query.limit(limit);
+    return query;
+  }
+
+  async count(filters = {}) {
+    return Delivery.countDocuments(filters);
   }
 
   async getById(id) {

@@ -19,9 +19,11 @@
  *           type: string
  *           enum: [ASSIGNED, IN_TRANSIT, DELIVERED, FAILED]
  *         description: Filtra las entregas por status.
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
  *     responses:
  *       200:
- *         description: Lista de entregas.
+ *         description: Página de entregas.
  *         content:
  *           application/json:
  *             schema:
@@ -31,6 +33,8 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Delivery'
+ *                 meta:
+ *                   $ref: '#/components/schemas/PaginationMeta'
  */
 
 /**

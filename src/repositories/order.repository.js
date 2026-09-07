@@ -7,8 +7,15 @@ const Order = require('../models/order.model');
 class OrderRepository {
   static DEFAULT_PROJECTION = '-__v';
 
-  async getAll(filters = {}) {
-    return Order.find(filters, OrderRepository.DEFAULT_PROJECTION).lean();
+  async getAll(filters = {}, { skip = 0, limit = 0 } = {}) {
+    let query = Order.find(filters, OrderRepository.DEFAULT_PROJECTION).lean();
+    if (skip) query = query.skip(skip);
+    if (limit) query = query.limit(limit);
+    return query;
+  }
+
+  async count(filters = {}) {
+    return Order.countDocuments(filters);
   }
 
   async getById(id) {

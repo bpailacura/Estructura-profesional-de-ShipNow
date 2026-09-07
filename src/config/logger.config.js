@@ -37,9 +37,10 @@ const LOG_LEVELS = {
 
 winston.addColors(LOG_LEVELS.colors);
 
-// En desarrollo queremos ver todo, incluso `debug`.
-// En producción solo lo relevante: info, warning, error y fatal.
-const levelForEnv = config.isProduction ? 'info' : 'debug';
+// El nivel efectivo se resuelve en env.config.js: usa LOG_LEVEL si vino
+// seteada y es válida, y si no cae al default por entorno (debug en
+// dev/test, info en producción).
+const levelForEnv = config.logLevel;
 
 const LOGS_DIR = path.join(process.cwd(), 'logs');
 

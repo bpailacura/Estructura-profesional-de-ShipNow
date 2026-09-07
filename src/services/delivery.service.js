@@ -4,12 +4,20 @@ const orderRepository = require('../repositories/order.repository');
 const userRepository = require('../repositories/user.repository');
 const { DELIVERY_STATUS, USER_ROLES, DOCUMENT_TYPES } = require('../constants');
 const { NotFoundError, ValidationError, ConflictError, FileError } = require('../errors/domainErrors');
+const { parsePagination, buildMeta } = require('../utils/pagination.util');
 const logger = require('../config/logger.config');
 
 class DeliveryService {
-  async getAllDeliveries({ status } = {}) {
+  async getAllDeliveries({ status, page, limit } = {}) {
     const filters = status ? { status } : {};
-    return deliveryRepository.getAll(filters);
+    const pagination = parsePagination({ page, limit });
+
+    const [data, total] = await Promise.all([
+      deliveryRepository.getAll(filters, pagination),
+      deliveryRepository.count(filters),
+    ]);
+
+    return { data, meta: buildMeta({ ...pagination, total }) };
   }
 
   async getDeliveryById(id) {

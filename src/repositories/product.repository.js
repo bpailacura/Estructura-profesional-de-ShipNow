@@ -9,10 +9,17 @@ class ProductRepository {
   // Proyección por defecto: nunca devolvemos campos internos de Mongo (__v)
   static DEFAULT_PROJECTION = '-__v';
 
-  async getAll(filters = {}) {
+  async getAll(filters = {}, { skip = 0, limit = 0 } = {}) {
     // Encapsula un filtro por defecto: por ejemplo, nunca devolver
     // productos "borrados" si en el futuro se agrega soft-delete.
-    return Product.find(filters, ProductRepository.DEFAULT_PROJECTION).lean();
+    let query = Product.find(filters, ProductRepository.DEFAULT_PROJECTION).lean();
+    if (skip) query = query.skip(skip);
+    if (limit) query = query.limit(limit);
+    return query;
+  }
+
+  async count(filters = {}) {
+    return Product.countDocuments(filters);
   }
 
   async getById(id) {

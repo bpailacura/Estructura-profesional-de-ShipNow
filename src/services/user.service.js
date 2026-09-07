@@ -3,13 +3,21 @@ const bcrypt = require('bcryptjs');
 const userRepository = require('../repositories/user.repository');
 const { USER_ROLES, DOCUMENT_TYPES } = require('../constants');
 const { NotFoundError, ConflictError, ValidationError, FileError } = require('../errors/domainErrors');
+const { parsePagination, buildMeta } = require('../utils/pagination.util');
 const logger = require('../config/logger.config');
 
 const SALT_ROUNDS = 10;
 
 class UserService {
-  async getAllUsers() {
-    return userRepository.getAll();
+  async getAllUsers({ page, limit } = {}) {
+    const pagination = parsePagination({ page, limit });
+
+    const [data, total] = await Promise.all([
+      userRepository.getAll({}, pagination),
+      userRepository.count({}),
+    ]);
+
+    return { data, meta: buildMeta({ ...pagination, total }) };
   }
 
   async getUserById(id) {

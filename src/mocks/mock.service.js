@@ -31,9 +31,10 @@ function fakeObjectId() {
 class MockService {
   // ---- Endpoints de PREVIEW: generan datos con forma realista, sin tocar la DB ----
 
-  previewUsers(count, { role } = {}) {
+  async previewUsers(count, { role } = {}) {
     const safeCount = parseCount(count, { min: MIN_COUNT, max: MAX_PREVIEW_COUNT, fieldName: 'count' });
-    return userFactory.buildUsers(safeCount, { role }).map(sanitizeUser);
+    const users = await userFactory.buildUsers(safeCount, { role });
+    return users.map(sanitizeUser);
   }
 
   previewOrders(count) {
@@ -81,7 +82,7 @@ class MockService {
       // vez de insertar usuarios de más). Así "usersCreated" en la respuesta
       // siempre coincide con la cantidad real que queda en la base, sin
       // importar cómo haya salido el sorteo de roles.
-      const usersToInsert = userFactory.buildUsers(safeUsersCount);
+      const usersToInsert = await userFactory.buildUsers(safeUsersCount);
 
       const hasDeliveryPerson = usersToInsert.some((user) => user.role === USER_ROLES.DELIVERY_PERSON);
       const hasCustomer = usersToInsert.some((user) => user.role !== USER_ROLES.DELIVERY_PERSON);
@@ -108,14 +109,14 @@ class MockService {
       // forzado de roles de arriba ya cubre cualquier caso con 2 o más).
       if (customers.length === 0) {
         const [extraCustomer] = await userRepository.insertMany([
-          userFactory.buildUser({ role: USER_ROLES.USER }),
+          await userFactory.buildUser({ role: USER_ROLES.USER }),
         ]);
         customers = [extraCustomer];
         allInsertedUsers.push(extraCustomer);
       }
       if (deliveryPeople.length === 0) {
         const [extraDeliveryPerson] = await userRepository.insertMany([
-          userFactory.buildUser({ role: USER_ROLES.DELIVERY_PERSON }),
+          await userFactory.buildUser({ role: USER_ROLES.DELIVERY_PERSON }),
         ]);
         deliveryPeople = [extraDeliveryPerson];
         allInsertedUsers.push(extraDeliveryPerson);

@@ -19,9 +19,11 @@
  *           type: string
  *           enum: [PENDING, SHIPPED, DELIVERED, CANCELLED]
  *         description: Filtra los pedidos por status.
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
  *     responses:
  *       200:
- *         description: Lista de pedidos.
+ *         description: Página de pedidos.
  *         content:
  *           application/json:
  *             schema:
@@ -31,6 +33,8 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Order'
+ *                 meta:
+ *                   $ref: '#/components/schemas/PaginationMeta'
  */
 
 /**

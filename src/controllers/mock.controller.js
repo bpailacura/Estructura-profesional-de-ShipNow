@@ -2,10 +2,10 @@ const mockService = require('../mocks/mock.service');
 
 class MockController {
   // GET /api/mocks/users?count=10&role=DELIVERY_PERSON
-  getUsers(req, res, next) {
+  async getUsers(req, res, next) {
     try {
       const { count = 10, role } = req.query;
-      const users = mockService.previewUsers(count, { role });
+      const users = await mockService.previewUsers(count, { role });
       return res.status(200).json({ data: users });
     } catch (error) {
       next(error);

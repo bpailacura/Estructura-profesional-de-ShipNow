@@ -1,12 +1,20 @@
 const productRepository = require('../repositories/product.repository');
 const { PRODUCT_STATUS } = require('../constants');
 const { NotFoundError, ValidationError } = require('../errors/domainErrors');
+const { parsePagination, buildMeta } = require('../utils/pagination.util');
 const logger = require('../config/logger.config');
 
 class ProductService {
-  async getAllProducts({ onlyAvailable = false } = {}) {
+  async getAllProducts({ onlyAvailable = false, page, limit } = {}) {
     const filters = onlyAvailable ? { status: PRODUCT_STATUS.AVAILABLE } : {};
-    return productRepository.getAll(filters);
+    const pagination = parsePagination({ page, limit });
+
+    const [data, total] = await Promise.all([
+      productRepository.getAll(filters, pagination),
+      productRepository.count(filters),
+    ]);
+
+    return { data, meta: buildMeta({ ...pagination, total }) };
   }
 
   async getProductById(id) {

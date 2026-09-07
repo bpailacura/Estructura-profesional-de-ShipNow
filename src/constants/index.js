@@ -59,6 +59,15 @@ const UPLOAD_LIMITS = Object.freeze({
   ALLOWED_MIME_TYPES: Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
 });
 
+// Paginación por defecto para los listados grandes (products, users, orders,
+// deliveries). MAX_LIMIT existe para que nadie pida limit=999999 y tire
+// abajo el Event Loop con una sola query.
+const PAGINATION = Object.freeze({
+  DEFAULT_PAGE: 1,
+  DEFAULT_LIMIT: 20,
+  MAX_LIMIT: 100,
+});
+
 module.exports = {
   USER_ROLES,
   PRODUCT_STATUS,
@@ -67,4 +76,5 @@ module.exports = {
   DELIVERY_STATUS,
   DOCUMENT_TYPES,
   UPLOAD_LIMITS,
+  PAGINATION,
 };

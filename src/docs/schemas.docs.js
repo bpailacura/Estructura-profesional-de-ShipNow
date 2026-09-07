@@ -338,6 +338,24 @@
  *         data:
  *           type: object
  *
+ *     PaginationMeta:
+ *       type: object
+ *       description: Metadata de paginación que acompaña a "data" en los listados grandes (products, users, orders, deliveries).
+ *       properties:
+ *         page:
+ *           type: integer
+ *           example: 1
+ *         limit:
+ *           type: integer
+ *           example: 20
+ *         total:
+ *           type: integer
+ *           description: Cantidad total de documentos que matchean los filtros aplicados (sin paginar).
+ *           example: 47
+ *         totalPages:
+ *           type: integer
+ *           example: 3
+ *
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -354,6 +372,27 @@
  *               type: object
  *               nullable: true
  *               description: Presente solo cuando aplica (ej. qué campo falló una validación).
+ *
+ *   parameters:
+ *     PageParam:
+ *       in: query
+ *       name: page
+ *       required: false
+ *       schema:
+ *         type: integer
+ *         minimum: 1
+ *         default: 1
+ *       description: Número de página (1-indexed). Valores inválidos o ausentes caen al default.
+ *     LimitParam:
+ *       in: query
+ *       name: limit
+ *       required: false
+ *       schema:
+ *         type: integer
+ *         minimum: 1
+ *         maximum: 100
+ *         default: 20
+ *       description: Cantidad de resultados por página. Se recorta automáticamente a 100 como máximo.
  */
 
 module.exports = {};

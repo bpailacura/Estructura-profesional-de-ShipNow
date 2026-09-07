@@ -11,9 +11,12 @@
  *   get:
  *     summary: Listar todos los usuarios
  *     tags: [Users]
+ *     parameters:
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
  *     responses:
  *       200:
- *         description: Lista de usuarios (nunca incluye passwordHash).
+ *         description: Página de usuarios (nunca incluye passwordHash).
  *         content:
  *           application/json:
  *             schema:
@@ -23,6 +26,8 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/User'
+ *                 meta:
+ *                   $ref: '#/components/schemas/PaginationMeta'
  *       500:
  *         description: Error interno del servidor.
  *         content:

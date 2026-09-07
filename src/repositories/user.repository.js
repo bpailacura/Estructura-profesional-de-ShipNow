@@ -8,8 +8,15 @@ class UserRepository {
   // Nunca devolvemos el hash de la contraseña por defecto
   static DEFAULT_PROJECTION = '-__v -passwordHash';
 
-  async getAll() {
-    return User.find({}, UserRepository.DEFAULT_PROJECTION).lean();
+  async getAll(filters = {}, { skip = 0, limit = 0 } = {}) {
+    let query = User.find(filters, UserRepository.DEFAULT_PROJECTION).lean();
+    if (skip) query = query.skip(skip);
+    if (limit) query = query.limit(limit);
+    return query;
+  }
+
+  async count(filters = {}) {
+    return User.countDocuments(filters);
   }
 
   async getById(id) {

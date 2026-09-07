@@ -3,9 +3,13 @@ const productService = require('../services/product.service');
 class ProductController {
   async getAll(req, res, next) {
     try {
-      const onlyAvailable = req.query.available === 'true';
-      const products = await productService.getAllProducts({ onlyAvailable });
-      return res.status(200).json({ data: products });
+      const { available, page, limit } = req.query;
+      const { data, meta } = await productService.getAllProducts({
+        onlyAvailable: available === 'true',
+        page,
+        limit,
+      });
+      return res.status(200).json({ data, meta });
     } catch (error) {
       next(error);
     }

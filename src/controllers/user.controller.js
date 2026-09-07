@@ -3,8 +3,9 @@ const userService = require('../services/user.service');
 class UserController {
   async getAll(req, res, next) {
     try {
-      const users = await userService.getAllUsers();
-      return res.status(200).json({ data: users });
+      const { page, limit } = req.query;
+      const { data, meta } = await userService.getAllUsers({ page, limit });
+      return res.status(200).json({ data, meta });
     } catch (error) {
       next(error);
     }

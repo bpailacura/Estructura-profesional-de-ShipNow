@@ -80,32 +80,34 @@ Desde ahí se puede consultar y **probar en vivo** (botón "Try it out") cada en
 ### Endpoints disponibles
 
 **Productos** (`/api/products`)
-- `GET /` — lista todos (`?available=true` filtra solo disponibles)
+- `GET /` — lista paginada (`?available=true` filtra solo disponibles; `?page`/`?limit` paginan — default `page=1`, `limit=20`, tope `limit=100`)
 - `GET /:id`
 - `POST /`
 - `PUT /:id`
 - `DELETE /:id`
 
 **Usuarios** (`/api/users`)
-- `GET /`
+- `GET /` — lista paginada (`?page`/`?limit` — default `page=1`, `limit=20`, tope `limit=100`)
 - `GET /:id`
 - `POST /register`
 - `PUT /:id`
 - `DELETE /:id`
 
 **Pedidos** (`/api/orders`)
-- `GET /` — lista todos (`?status=PENDING|SHIPPED|DELIVERED|CANCELLED` filtra por estado)
+- `GET /` — lista paginada (`?status=PENDING|SHIPPED|DELIVERED|CANCELLED` filtra por estado; `?page`/`?limit` paginan)
 - `GET /:id`
 - `POST /` — body: `{ customer, items: [{ productName, quantity, unitPrice, product? }], priority? }`. `totalAmount` se calcula en el servidor, nunca se recibe del cliente.
 - `PUT /:id/status` — body: `{ status }` (debe ser uno de `PENDING|SHIPPED|DELIVERED|CANCELLED`)
 - `DELETE /:id`
 
 **Entregas** (`/api/deliveries`)
-- `GET /` — lista todas (`?status=ASSIGNED|IN_TRANSIT|DELIVERED|FAILED` filtra por estado)
+- `GET /` — lista paginada (`?status=ASSIGNED|IN_TRANSIT|DELIVERED|FAILED` filtra por estado; `?page`/`?limit` paginan)
 - `GET /:id`
 - `POST /` — body: `{ order, deliveryPerson, address, estimatedDeliveryDate }`. Valida que `order` exista, que `deliveryPerson` sea un usuario con rol `DELIVERY_PERSON`, y que el pedido no tenga ya una entrega asociada (relación 1 a 1).
 - `PUT /:id/status` — body: `{ status }` (debe ser uno de `ASSIGNED|IN_TRANSIT|DELIVERED|FAILED`)
 - `DELETE /:id`
+
+> **Paginación:** las 4 listas grandes (`products`, `users`, `orders`, `deliveries`) devuelven `{ data, meta }` en vez de un array pelado, con `meta: { page, limit, total, totalPages }`. `limit` se recorta automáticamente a 100 aunque se pida más, para que nadie traiga la colección entera de un tirón (ver `src/utils/pagination.util.js`).
 
 **Mocking** (`/api/mocks`)
 
@@ -244,6 +246,12 @@ curl -X PUT http://localhost:3000/api/deliveries/<id-de-una-entrega>/status \
 
 Si falta `PORT`, `MONGODB_URI` o `NODE_ENV` en el `.env`, la aplicación **no arranca**: `src/config/env.config.js` valida estas variables al cargar el módulo y lanza un error descriptivo antes de que `server.js` intente conectar a la base o levantar Express.
 
+Además de las obligatorias, hay dos variables opcionales (la app arranca igual si faltan, usando su default):
+- `JWT_SECRET` — reservada para cuando se implemente login con JWT; hoy ningún endpoint la usa.
+- `LOG_LEVEL` — nivel mínimo que loguea el logger (`fatal|error|warning|info|http|debug`). Si no está seteada o el valor no es uno de esos, cae al default por entorno: `debug` en development/test, `info` en production.
+
+ShipNow no consume ninguna API externa en esta versión (no hay pasarela de pago, geolocalización, etc.), por eso no hay variables `*_SERVICE_URL`.
+
 ## Testing funcional
 
 [#testing-funcional](#testing-funcional)
@@ -337,3 +345,78 @@ Esto dispara un mensaje en cada uno de los 6 niveles. Deberías verlos en la con
 - **Producción** (`NODE_ENV=production`): el logger solo registra desde `info` hacia arriba (`info`, `warning`, `error`, `fatal`); `debug` y `http` quedan silenciados para no ensuciar los logs con detalle de diagnóstico.
 
 En ambos casos, `logs/error-*.log` se comporta igual: solo `error` y `fatal`, sin importar el entorno.
+
+## Producción y Docker
+
+[#producción-y-docker](#producción-y-docker)
+
+### Health check
+
+`GET /health` (fuera de `/api`, sin prefijo) devuelve el estado del proceso — pensado para que un orquestador (Docker, Kubernetes, un balanceador) sepa si el contenedor está vivo:
+
+```json
+{
+  "status": "ok",
+  "environment": "production",
+  "uptime": 134.821,
+  "timestamp": "2026-09-06T20:13:03.140Z"
+}
+```
+
+No expone nada sensible (ni `MONGODB_URI`, ni `JWT_SECRET`, ni ningún dato de negocio) — es intencional, para poder dejarlo accesible sin autenticación incluso en producción.
+
+### Criterio sobre endpoints internos
+
+`/api/mocks/*`, `/api/logger/test` y `/api/docs` (Swagger UI) son herramientas de desarrollo/QA, no funcionalidad de negocio. El criterio aplicado (`src/middlewares/blockInProduction.middleware.js`) es: **quedan completamente bloqueados cuando `NODE_ENV=production`**, respondiendo el mismo `404` genérico que cualquier ruta inexistente (nunca `403`, para no confirmar siquiera que la ruta existe). En `development` y `test` siguen abiertos como siempre.
+
+### Variables de entorno necesarias
+
+Ver `.env.example`. Resumen — obligatorias (la app no arranca si falta alguna): `PORT`, `MONGODB_URI`, `NODE_ENV`. Opcionales: `JWT_SECRET`, `LOG_LEVEL` (detalle en [Validación de entorno](#validación-de-entorno)).
+
+### Cómo correr la API localmente
+
+Ver [Instalación y ejecución local](#instalación-y-ejecución-local) más arriba (`npm install`, copiar `.env.example` a `.env`, `npm run dev` o `npm start`).
+
+### Cómo correr los tests
+
+Ver [Testing funcional](#testing-funcional) más arriba (`npm test`, requiere un Mongo accesible vía `.env.test`).
+
+### Cómo acceder a Swagger
+
+Con el server arriba en modo `development` (en `production` está bloqueado a propósito, ver arriba): `http://localhost:3000/api/docs`.
+
+### Docker
+
+**Archivos:**
+- `Dockerfile` — imagen `node:20-alpine`, instala solo dependencias de producción (`npm ci --omit=dev`), corre como usuario no-root (`node`), expone el puerto y define un `HEALTHCHECK` que pega contra `/health`.
+- `.dockerignore` — evita copiar `node_modules`, `.env`/`.env.test`, `.git`, `logs`, `uploads`, `tests`, `coverage` y archivos temporales a la imagen.
+
+**Construir la imagen:**
+```bash
+docker build -t shipnow-api .
+```
+
+**Ejecutar el contenedor** (variables de entorno desde un `.env`, o pasadas una por una con `-e`):
+```bash
+docker run --env-file .env -p 3000:3000 shipnow-api
+```
+Si tu Mongo corre en el host (no en otro contenedor), usá `mongodb://host.docker.internal:27017/shipnow` como `MONGODB_URI` en ese `.env` (en Linux puede hacer falta `--add-host=host.docker.internal:host-gateway` en el `docker run`).
+
+Con el contenedor arriba, podés probar:
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/api/docs        # solo si NODE_ENV != production
+curl "http://localhost:3000/api/products"  # algún endpoint principal
+```
+
+**Puerto:** la API escucha en el valor de `PORT` (`3000` por defecto en `.env.example`); el Dockerfile expone `3000` y hay que mapearlo con `-p <puerto-host>:<PORT>` acorde a lo que tenga tu `.env`.
+
+**Qué archivos no deben subirse al repo:** `node_modules/`, `.env` (nunca — tiene credenciales reales), `logs/*` (se versiona solo `logs/.gitkeep`) y `uploads/*` (se versiona solo `uploads/.gitkeep`). Ver `.gitignore`. `.env.test` sí está versionado a propósito: no tiene secretos reales, solo apunta a una base de testing local.
+
+**Logs y uploads dentro del contenedor:** ambas carpetas se recrean automáticamente al construir la imagen (`mkdir -p uploads logs` en el `Dockerfile`), pero su contenido vive en el filesystem efímero del contenedor — si el contenedor se destruye, se pierde. Para persistirlos entre reinicios, montalos como volumen:
+```bash
+docker run --env-file .env -p 3000:3000 \
+  -v shipnow_uploads:/usr/src/app/uploads \
+  -v shipnow_logs:/usr/src/app/logs \
+  shipnow-api
+```

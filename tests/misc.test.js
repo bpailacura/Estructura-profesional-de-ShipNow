@@ -32,10 +32,15 @@ describe('Ruta inexistente', () => {
 });
 
 describe('Healthcheck (/health)', () => {
-  it('devuelve 200 y confirma que el servidor está vivo', async () => {
+  it('devuelve 200 con estado, entorno, uptime y timestamp, sin datos sensibles', async () => {
     const res = await request(app).get('/health');
 
     expect(res.status).to.equal(200);
-    expect(res.body).to.deep.equal({ status: 'ok' });
+    expect(res.body).to.have.property('status', 'ok');
+    expect(res.body).to.have.property('environment', 'test');
+    expect(res.body).to.have.property('uptime').that.is.a('number');
+    expect(res.body).to.have.property('timestamp').that.is.a('string');
+    expect(res.body).to.not.have.property('mongoUri');
+    expect(res.body).to.not.have.property('jwtSecret');
   });
 });
