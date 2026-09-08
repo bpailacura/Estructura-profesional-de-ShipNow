@@ -1,13 +1,10 @@
-node_modules/
-.env
-npm-debug.log
-
-# Logs generados por la app (Winston). La carpeta se conserva
-# vía logs/.gitkeep, pero los archivos que genera la app no se suben.
-logs/*
-!logs/.gitkeep
-
-# Archivos subidos por los usuarios (Multer). La carpeta se conserva
-# vía uploads/.gitkeep, pero los archivos cargados no van al repo.
+# Archivos subidos por los usuarios (Multer). Las carpetas se conservan
+# vía sus .gitkeep, pero los archivos cargados no van al repo.
 uploads/*
 !uploads/.gitkeep
+!uploads/users/
+!uploads/deliveries/
+uploads/users/*
+!uploads/users/.gitkeep
+uploads/deliveries/*
+!uploads/deliveries/.gitkeep
