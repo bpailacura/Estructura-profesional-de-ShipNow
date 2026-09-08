@@ -1,0 +1,61 @@
+# docker-compose.yml — ShipNow
+#
+# Levanta dos servicios: la API (build local, a partir del Dockerfile) y
+# una instancia de MongoDB. La API tiene "depends_on: condition:
+# service_healthy" sobre mongo, así que Compose no la arranca hasta que
+# el healthcheck de Mongo pase por primera vez -- evita el clásico error
+# de "ECONNREFUSED 27017" en el primer intento de conexión.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shipnow-api
+    container_name: shipnow-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - .env
+    environment:
+      # Dentro de la red de Compose, Mongo se resuelve por el nombre del
+      # servicio ("mongo"), no por localhost. Esto pisa lo que tengas en
+      # .env para que el contenedor siempre le pegue a la instancia
+      # levantada acá al lado, no a la de tu máquina.
+      MONGODB_URI: mongodb://mongo:27017/shipnow
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      # Uploads y logs persisten fuera del contenedor -- si se recrea el
+      # contenedor no se pierden los archivos subidos ni el historial de logs.
+      - uploads_data:/usr/src/app/uploads
+      - logs_data:/usr/src/app/logs
+
+  mongo:
+    image: mongo:7
+    container_name: shipnow-mongo
+    restart: unless-stopped
+    volumes:
+      # Persistencia de la base entre reinicios del contenedor.
+      - mongo_data:/data/db
+    healthcheck:
+      # mongosh viene incluido en la imagen oficial desde Mongo 6+.
+      # "ping" a la base admin es la forma estándar de chequear que el
+      # servidor está aceptando conexiones.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Nota: no exponemos el puerto 27017 al host por defecto -- la API
+    # le habla por la red interna de Compose. Si necesitás conectarte
+    # desde afuera (ej. Compass) para debuggear, descomentá:
+    # ports:
+    #   - "27017:27017"
+
+volumes:
+  mongo_data:
+  uploads_data:
+  logs_data:
