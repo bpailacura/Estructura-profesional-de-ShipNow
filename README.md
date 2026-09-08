@@ -6,8 +6,8 @@ Refactor de la API base de ShipNow a arquitectura **Controller → Service → R
 
 ```
 src/
-  config/          # Lectura/validación de env vars, configuración del logger (Winston) y configuración de Swagger
-  constants/        # Valores fijos del dominio: roles, estados, prioridades (Object.freeze)
+  config/          # Lectura/validación de env vars, configuración del logger (Winston), Multer y Swagger
+  constants/        # Valores fijos del dominio: roles, estados, prioridades, tipos de documento, límites de upload (Object.freeze)
   models/           # Esquemas de Mongoose, sin lógica de negocio (User, Product, Order, Delivery)
   repositories/     # Único lugar que conoce Mongoose/MongoDB
   services/         # Lógica de negocio (validaciones, reglas, orquestación)
@@ -22,6 +22,7 @@ src/
   app.js            # Configuración de Express
 server.js           # Punto de entrada: conecta DB y levanta el server
 logs/               # Archivos de log generados por Winston (ignorados por Git, ver más abajo)
+uploads/            # Documentos de usuario y comprobantes de entrega subidos vía Multer (ignorados por Git, ver más abajo)
 ```
 
 > **Nota sobre el dominio:** el proyecto ya tenía `User` y `Product`. En el módulo anterior (mocking de pedidos, entregas y repartidores) se agregaron los modelos `Order` (pedido) y `Delivery` (entrega), y el rol `DELIVERY_PERSON` (repartidor). Para esta pre-entrega se agregó el CRUD real de `Order` y `Delivery` (antes solo existían como datos simulados dentro de `/api/mocks`), siguiendo la misma arquitectura por capas, y se documentó toda la API con Swagger/OpenAPI.
@@ -91,6 +92,7 @@ Desde ahí se puede consultar y **probar en vivo** (botón "Try it out") cada en
 - `GET /:id`
 - `POST /register`
 - `PUT /:id`
+- `POST /:id/documents` — sube un documento del usuario (`multipart/form-data`, ver [Carga de archivos](#carga-de-archivos-multer))
 - `DELETE /:id`
 
 **Pedidos** (`/api/orders`)
@@ -105,6 +107,7 @@ Desde ahí se puede consultar y **probar en vivo** (botón "Try it out") cada en
 - `GET /:id`
 - `POST /` — body: `{ order, deliveryPerson, address, estimatedDeliveryDate }`. Valida que `order` exista, que `deliveryPerson` sea un usuario con rol `DELIVERY_PERSON`, y que el pedido no tenga ya una entrega asociada (relación 1 a 1).
 - `PUT /:id/status` — body: `{ status }` (debe ser uno de `ASSIGNED|IN_TRANSIT|DELIVERED|FAILED`)
+- `POST /:id/proof` — sube un comprobante de la entrega (`multipart/form-data`, ver [Carga de archivos](#carga-de-archivos-multer))
 - `DELETE /:id`
 
 > **Paginación:** las 4 listas grandes (`products`, `users`, `orders`, `deliveries`) devuelven `{ data, meta }` en vez de un array pelado, con `meta: { page, limit, total, totalPages }`. `limit` se recorta automáticamente a 100 aunque se pida más, para que nadie traiga la colección entera de un tirón (ver `src/utils/pagination.util.js`).
@@ -164,9 +167,9 @@ Ninguna ruta ni controller arma respuestas de error a mano. Todos hacen `next(er
 
 - `errorDictionary.js` — diccionario que mapea un código de error (ej. `USER_NOT_FOUND`) a su `statusCode` y mensaje por defecto. Es el único lugar donde se decide "este tipo de error responde con tal código".
 - `AppError.js` — clase base: se instancia con una clave del diccionario y busca ahí el `statusCode`/mensaje, permitiendo overridear el mensaje o agregar `details` puntuales (ej. qué campo falló).
-- `domainErrors.js` — errores personalizados del dominio, agrupados por familia: `NotFoundError` (404: usuario/producto/pedido/entrega inexistente), `ValidationError` (400: datos inválidos, status inválido en pedidos/entregas, cantidad de mocks inválida), `ConflictError` (409: email duplicado, pedido que ya tiene entrega asociada), `DatabaseError` (502: falla real de Mongo durante el seed de mocks).
+- `domainErrors.js` — errores personalizados del dominio, agrupados por familia: `NotFoundError` (404: usuario/producto/pedido/entrega inexistente), `ValidationError` (400: datos inválidos, status inválido en pedidos/entregas, cantidad de mocks inválida), `ConflictError` (409: email duplicado, pedido que ya tiene entrega asociada), `DatabaseError` (502: falla real de Mongo durante el seed de mocks), `FileError` (400: archivo requerido, tipo inválido, archivo demasiado grande, campo inesperado, fallo al persistir el metadata).
 
-Los `services` (`user.service.js`, `product.service.js`) y el módulo de mocks (`mock.service.js`, apoyado en `mock.validation.js`) lanzan estos errores directamente — nunca arman ellos mismos la respuesta HTTP.
+Los `services` (`user.service.js`, `product.service.js`, `delivery.service.js`) y el módulo de mocks (`mock.service.js`, apoyado en `mock.validation.js`) lanzan estos errores directamente — nunca arman ellos mismos la respuesta HTTP.
 
 **Middleware global (`error.middleware.js`):** recibe cualquier error que llegue por `next(error)`, lo normaliza (si ya es un `AppError` lo usa tal cual; si es un error de Mongoose/Mongo —`CastError`, `ValidationError` de schema, clave duplicada `11000`— lo traduce a un `AppError` equivalente; cualquier otra cosa cae en un `INTERNAL_ERROR` genérico) y responde siempre con la misma forma:
 
@@ -326,7 +329,7 @@ Toda la app loguea a través de un único módulo centralizado (`src/config/logg
 | `http` | Trazabilidad de requests puntuales (usado por el endpoint de prueba). |
 | `debug` | Detalle fino solo útil en desarrollo. |
 
-**Dónde se usa:** arranque del servidor y conexión a MongoDB (`server.js`), middleware global de errores (`src/middlewares/error.middleware.js`, que decide `warning` vs `error` según el `statusCode` normalizado), rutas inexistentes (`src/app.js`), el módulo de mocks (`src/mocks/mock.service.js`, al generar/insertar datos de prueba) y operaciones de negocio importantes como registrar un usuario o crear un producto.
+**Dónde se usa:** arranque del servidor y conexión a MongoDB (`server.js`), middleware global de errores (`src/middlewares/error.middleware.js`, que decide `warning` vs `error` según el `statusCode` normalizado), rutas inexistentes (`src/app.js`), el módulo de mocks (`src/mocks/mock.service.js`, al generar/insertar datos de prueba) y operaciones de negocio importantes como registrar un usuario, crear un producto o subir un archivo.
 
 **Cómo probar el endpoint del logger:**
 ```bash
@@ -345,6 +348,46 @@ Esto dispara un mensaje en cada uno de los 6 niveles. Deberías verlos en la con
 - **Producción** (`NODE_ENV=production`): el logger solo registra desde `info` hacia arriba (`info`, `warning`, `error`, `fatal`); `debug` y `http` quedan silenciados para no ensuciar los logs con detalle de diagnóstico.
 
 En ambos casos, `logs/error-*.log` se comporta igual: solo `error` y `fatal`, sin importar el entorno.
+
+## Carga de archivos (Multer)
+
+[#carga-de-archivos-multer](#carga-de-archivos-multer)
+
+Dos endpoints aceptan `multipart/form-data`, ambos con el archivo en el campo **`file`**:
+
+| Método | Endpoint | Asocia el archivo a |
+|---|---|---|
+| `POST` | `/api/users/:id/documents` | Un usuario (ej: DNI, licencia de conducir) |
+| `POST` | `/api/deliveries/:id/proof` | Una entrega (ej: foto de entrega, firma, recibo) |
+
+**Configuración** (`src/config/multer.config.js`, `src/constants/index.js`):
+- **Tamaño máximo**: 5 MB por archivo (`UPLOAD_LIMITS.MAX_FILE_SIZE_BYTES`).
+- **Tipos permitidos**: `image/jpeg`, `image/png`, `image/webp`, `application/pdf` (`UPLOAD_LIMITS.ALLOWED_MIME_TYPES`). Cualquier otro mimetype se rechaza con `400 INVALID_FILE_TYPE`.
+- **Un solo archivo por request** (`files: 1`); si se manda más de uno o en un campo distinto a `file`, `400 UNEXPECTED_FILE_FIELD`.
+- **`documentType`** (opcional, va en el body junto al archivo): uno de `DNI_FRONT`, `DNI_BACK`, `DRIVER_LICENSE`, `DELIVERY_PROOF`, `OTHER`. Si no se manda en `/deliveries/:id/proof`, se asume `DELIVERY_PROOF` automáticamente. Un valor no reconocido devuelve `400 INVALID_DOCUMENT_TYPE`.
+
+**Guardado en disco:** el archivo se renombra (`timestamp-hexrandom.ext`, nunca el nombre original del cliente — evita colisiones y path traversal) y se guarda en `uploads/users/` o `uploads/deliveries/` según corresponda. El **metadata** (`originalName`, `storedName`, `path`, `mimeType`, `size`, `documentType`) queda persistido en el documento de Mongo del usuario/entrega — el archivo en sí vive solo en el filesystem.
+
+**Errores propios de este módulo:**
+
+| Código | Cuándo |
+|---|---|
+| `FILE_REQUIRED` | No se mandó ningún archivo en el request |
+| `INVALID_FILE_TYPE` | Mimetype fuera de la lista permitida |
+| `FILE_TOO_LARGE` | Supera los 5 MB |
+| `UNEXPECTED_FILE_FIELD` | El archivo no vino en el campo `file`, o vino más de uno |
+| `INVALID_DOCUMENT_TYPE` | `documentType` no es uno de los valores válidos |
+| `FILE_UPLOAD_FAILED` | Falla real al persistir el metadata en la base |
+
+**Cómo probarlo:**
+```bash
+curl -X POST http://localhost:3000/api/users/<id-de-un-usuario>/documents \
+  -F "file=@/ruta/a/dni.jpg" \
+  -F "documentType=DNI_FRONT"
+
+curl -X POST http://localhost:3000/api/deliveries/<id-de-una-entrega>/proof \
+  -F "file=@/ruta/a/comprobante.pdf"
+```
 
 ## Producción y Docker
 
@@ -390,14 +433,23 @@ Con el server arriba en modo `development` (en `production` está bloqueado a pr
 **Archivos:**
 - `Dockerfile` — imagen `node:20-alpine`, instala solo dependencias de producción (`npm ci --omit=dev`), corre como usuario no-root (`node`), expone el puerto y define un `HEALTHCHECK` que pega contra `/health`.
 - `.dockerignore` — evita copiar `node_modules`, `.env`/`.env.test`, `.git`, `logs`, `uploads`, `tests`, `coverage` y archivos temporales a la imagen.
+- `docker-compose.yml` — levanta la API junto con una instancia de MongoDB. La API tiene `depends_on: condition: service_healthy` sobre Mongo (que tiene su propio healthcheck vía `mongosh --eval "db.adminCommand('ping')"`), así que nunca arranca antes de que la base esté lista para aceptar conexiones.
 
-**Construir la imagen:**
+**Opción recomendada — levantar todo con Compose:**
 ```bash
-docker build -t shipnow-api .
+cp .env.example .env
+docker-compose up --build
+```
+Esto construye la imagen de la API, levanta Mongo, espera a que esté healthy, y recién ahí arranca la API. Adentro de Compose, `MONGODB_URI` apunta automáticamente a `mongodb://mongo:27017/shipnow` (el nombre del servicio, no `localhost` — los contenedores se hablan por nombre de servicio dentro de la red de Compose). Los datos de Mongo, los `uploads/` y los `logs/` persisten en volúmenes nombrados aunque se recreen los contenedores.
+
+Probar que levantó bien:
+```bash
+curl http://localhost:3000/health
 ```
 
-**Ejecutar el contenedor** (variables de entorno desde un `.env`, o pasadas una por una con `-e`):
+**Opción manual — solo la imagen de la API (necesitás un Mongo aparte):**
 ```bash
+docker build -t shipnow-api .
 docker run --env-file .env -p 3000:3000 shipnow-api
 ```
 Si tu Mongo corre en el host (no en otro contenedor), usá `mongodb://host.docker.internal:27017/shipnow` como `MONGODB_URI` en ese `.env` (en Linux puede hacer falta `--add-host=host.docker.internal:host-gateway` en el `docker run`).
@@ -409,11 +461,11 @@ curl http://localhost:3000/api/docs        # solo si NODE_ENV != production
 curl "http://localhost:3000/api/products"  # algún endpoint principal
 ```
 
-**Puerto:** la API escucha en el valor de `PORT` (`3000` por defecto en `.env.example`); el Dockerfile expone `3000` y hay que mapearlo con `-p <puerto-host>:<PORT>` acorde a lo que tenga tu `.env`.
+**Puerto:** la API escucha en el valor de `PORT` (`3000` por defecto en `.env.example`); tanto el Dockerfile como el compose exponen `3000`, y hay que mapearlo con `-p <puerto-host>:<PORT>` acorde a lo que tenga tu `.env` si usás la opción manual.
 
 **Qué archivos no deben subirse al repo:** `node_modules/`, `.env` (nunca — tiene credenciales reales), `logs/*` (se versiona solo `logs/.gitkeep`) y `uploads/*` (se versiona solo `uploads/.gitkeep`). Ver `.gitignore`. `.env.test` sí está versionado a propósito: no tiene secretos reales, solo apunta a una base de testing local.
 
-**Logs y uploads dentro del contenedor:** ambas carpetas se recrean automáticamente al construir la imagen (`mkdir -p uploads logs` en el `Dockerfile`), pero su contenido vive en el filesystem efímero del contenedor — si el contenedor se destruye, se pierde. Para persistirlos entre reinicios, montalos como volumen:
+**Logs y uploads dentro del contenedor:** ambas carpetas se recrean automáticamente al construir la imagen (`mkdir -p uploads logs` en el `Dockerfile`), pero su contenido vive en el filesystem efímero del contenedor — si el contenedor se destruye, se pierde. Si usás `docker-compose up`, esto ya está resuelto con los volúmenes nombrados (`uploads_data`, `logs_data`). Si preferís correr la imagen suelta con `docker run`, montalos manualmente:
 ```bash
 docker run --env-file .env -p 3000:3000 \
   -v shipnow_uploads:/usr/src/app/uploads \
