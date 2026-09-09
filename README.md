@@ -431,7 +431,7 @@ Con el server arriba en modo `development` (en `production` está bloqueado a pr
 ### Docker
 
 **Archivos:**
-- `Dockerfile` — imagen `node:20-alpine`, instala solo dependencias de producción (`npm ci --omit=dev`), corre como usuario no-root (`node`), expone el puerto y define un `HEALTHCHECK` que pega contra `/health`.
+- `Dockerfile` — **multi-stage**: una etapa `deps` instala solo las dependencias de producción (`npm ci --omit=dev`), y la etapa final `runtime` arranca de una imagen limpia y copia únicamente el `node_modules` ya resuelto más el código fuente — así la imagen publicada no carga nada del proceso de instalación. Corre como usuario no-root (`node`), expone el puerto y define un `HEALTHCHECK` que pega contra `/health`.
 - `.dockerignore` — evita copiar `node_modules`, `.env`/`.env.test`, `.git`, `logs`, `uploads`, `tests`, `coverage` y archivos temporales a la imagen.
 - `docker-compose.yml` — levanta la API junto con una instancia de MongoDB. La API tiene `depends_on: condition: service_healthy` sobre Mongo (que tiene su propio healthcheck vía `mongosh --eval "db.adminCommand('ping')"`), así que nunca arranca antes de que la base esté lista para aceptar conexiones.
 
